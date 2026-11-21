@@ -1,5 +1,7 @@
 package com.tasneem.taskmanager.task;
 
+import com.tasneem.taskmanager.common.exception.BadRequestException;
+import com.tasneem.taskmanager.common.exception.ConflictException;
 import com.tasneem.taskmanager.common.exception.NotFoundException;
 import com.tasneem.taskmanager.task.dto.CreateTaskRequest;
 import com.tasneem.taskmanager.task.dto.TaskResponse;
@@ -10,23 +12,34 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
+import java.time.LocalDate;
+import java.util.Objects;
+
+/** All task business rules live here; the controller only translates HTTP. */
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class TaskService {
 
+    static final int MAX_OPEN_TASKS = 200;
+
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
     private final TaskMapper taskMapper;
+    private final Clock clock;
 
     public TaskResponse create(Long ownerId, CreateTaskRequest request) {
+        if (taskRepository.countByOwnerIdAndStatusNot(ownerId, TaskStatus.DONE) >= MAX_OPEN_TASKS) {
+            throw new ConflictException("Open task limit of " + MAX_OPEN_TASKS + " reached");
+        }
+        requireNotInPast(request.dueDate());
+
         Task task = new Task();
         task.setOwner(userRepository.getReferenceById(ownerId));
         task.setTitle(request.title().trim());
         task.setDescription(request.description());
-        if (request.priority() != null) {
-            task.setPriority(request.priority());
-        }
+        task.setPriority(request.priority() != null ? request.priority() : Priority.MEDIUM);
         task.setDueDate(request.dueDate());
         return taskMapper.toResponse(taskRepository.saveAndFlush(task));
     }
@@ -38,6 +51,14 @@ public class TaskService {
 
     public TaskResponse update(Long ownerId, Long taskId, UpdateTaskRequest request) {
         Task task = findOwnedTask(ownerId, taskId);
+        requireVersion(task, request.version());
+        if (task.getStatus() == TaskStatus.DONE) {
+            throw new ConflictException("A DONE task cannot be edited; reopen it first");
+        }
+        if (!Objects.equals(task.getDueDate(), request.dueDate())) {
+            requireNotInPast(request.dueDate());
+        }
+
         task.setTitle(request.title().trim());
         task.setDescription(request.description());
         task.setPriority(request.priority());
@@ -47,7 +68,14 @@ public class TaskService {
 
     public TaskResponse updateStatus(Long ownerId, Long taskId, UpdateStatusRequest request) {
         Task task = findOwnedTask(ownerId, taskId);
-        task.setStatus(request.status());
+        requireVersion(task, request.version());
+        TaskStatus target = request.status();
+        if (!task.getStatus().canMoveTo(target)) {
+            throw new ConflictException("Cannot move task from " + task.getStatus() + " to " + target);
+        }
+
+        task.setStatus(target);
+        task.setCompletedAt(target == TaskStatus.DONE ? clock.instant() : null);
         return taskMapper.toResponse(taskRepository.saveAndFlush(task));
     }
 
@@ -59,5 +87,22 @@ public class TaskService {
     private Task findOwnedTask(Long ownerId, Long taskId) {
         return taskRepository.findByIdAndOwnerId(taskId, ownerId)
                 .orElseThrow(() -> new NotFoundException("Task not found"));
+    }
+
+    /**
+     * The client must send the version it last read. A stale version means someone else
+     * changed the task in between. A race between two requests that both pass this check
+     * is still caught by JPA's @Version on flush.
+     */
+    private static void requireVersion(Task task, Long clientVersion) {
+        if (!task.getVersion().equals(clientVersion)) {
+            throw new ConflictException("Task was modified by another request; reload and try again");
+        }
+    }
+
+    private void requireNotInPast(LocalDate dueDate) {
+        if (dueDate != null && dueDate.isBefore(LocalDate.now(clock))) {
+            throw new BadRequestException("dueDate", "must be a date in the present or in the future");
+        }
     }
 }

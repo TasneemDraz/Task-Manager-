@@ -8,4 +8,6 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 
     /** Ownership check built into the lookup: someone else's task is simply "not found". */
     Optional<Task> findByIdAndOwnerId(Long id, Long ownerId);
+
+    long countByOwnerIdAndStatusNot(Long ownerId, TaskStatus status);
 }
