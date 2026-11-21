@@ -2,11 +2,11 @@ package com.tasneem.taskmanager.common.config;
 
 import com.tasneem.taskmanager.auth.JwtFilter;
 import com.tasneem.taskmanager.auth.JwtService;
+import com.tasneem.taskmanager.common.exception.SecurityProblemHandler;
 import com.tasneem.taskmanager.user.UserRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -14,7 +14,6 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -27,7 +26,8 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtService jwtService,
-                                                   UserRepository userRepository) throws Exception {
+                                                   UserRepository userRepository,
+                                                   SecurityProblemHandler problemHandler) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)   // stateless API, no cookies
                 .cors(Customizer.withDefaults())
@@ -38,7 +38,9 @@ public class SecurityConfig {
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
-                .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+                .exceptionHandling(e -> e
+                        .authenticationEntryPoint(problemHandler)
+                        .accessDeniedHandler(problemHandler))
                 // created here rather than as a @Component, so Boot does not also register it as a servlet filter
                 .addFilterBefore(new JwtFilter(jwtService, userRepository), UsernamePasswordAuthenticationFilter.class);
         return http.build();
