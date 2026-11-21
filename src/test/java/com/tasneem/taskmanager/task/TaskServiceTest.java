@@ -364,13 +364,28 @@ class TaskServiceTest {
         }
 
         @Test
-        void adminListUsesSamePaging() {
-            Page<Task> empty = new PageImpl<>(List.of(), PageRequest.of(0, 10), 0);
-            when(taskRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(empty);
+        void userListOmitsOwner() {
+            Task task = existingTask(TaskStatus.TODO);
+            when(taskRepository.findAll(any(Specification.class), any(Pageable.class)))
+                    .thenReturn(new PageImpl<>(List.of(task), PageRequest.of(0, 10), 1));
+
+            var page = taskService.list(OWNER_ID, new TaskFilter(null, null, null, null, null, null), 0, 10, TaskSorting.DEFAULT);
+
+            assertThat(page.content().getFirst().owner()).isNull();
+        }
+
+        @Test
+        void adminListIncludesOwner() {
+            User owner = new User("Jane Doe", "jane@example.com", "hash");
+            owner.setId(OWNER_ID);
+            Task task = existingTask(TaskStatus.TODO);
+            task.setOwner(owner);
+            Page<Task> result = new PageImpl<>(List.of(task), PageRequest.of(0, 10), 1);
+            when(taskRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(result);
 
             var page = taskService.listAll(new TaskFilter(null, null, null, null, true, null), 0, 10, TaskSorting.DEFAULT);
 
-            assertThat(page.content()).isEmpty();
+            assertThat(page.content().getFirst().owner()).isEqualTo(new TaskResponse.Owner(OWNER_ID, "jane@example.com"));
             assertThat(page.size()).isEqualTo(10);
         }
 

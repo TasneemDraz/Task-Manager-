@@ -1,5 +1,9 @@
 package com.tasneem.taskmanager.task;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -12,6 +16,11 @@ public interface TaskRepository extends JpaRepository<Task, Long>, JpaSpecificat
 
     /** Ownership check built into the lookup: someone else's task is simply "not found". */
     Optional<Task> findByIdAndOwnerId(Long id, Long ownerId);
+
+    /** Fetches the owner in the same query, so the admin listing does not run one query per task. */
+    @Override
+    @EntityGraph(attributePaths = "owner")
+    Page<Task> findAll(Specification<Task> spec, Pageable pageable);
 
     long countByOwnerIdAndStatusNot(Long ownerId, TaskStatus status);
 

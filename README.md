@@ -76,8 +76,8 @@ All endpoints are under `/api/v1`. Everything except register and login needs `A
 | DELETE | `/tasks/{id}` | Delete task | 204 |
 | GET | `/tasks/summary` | Counts by status, by priority, overdue count | 200 |
 | GET | `/admin/users` | List users (paged) — ADMIN | 200 |
-| PATCH | `/admin/users/{id}/deactivate` | Deactivate a user — ADMIN | 204 |
-| GET | `/admin/tasks` | List all tasks (same filters) — ADMIN | 200 |
+| PATCH | `/admin/users/{id}/deactivate` | Deactivate a user (admin accounts cannot be deactivated: 409) — ADMIN | 204 |
+| GET | `/admin/tasks` | List all tasks with their `owner` (same filters) — ADMIN | 200 |
 
 **Query parameters for `GET /tasks`** (all optional, combinable): `status` (repeatable), `priority` (repeatable), `dueFrom` / `dueTo` (`yyyy-MM-dd`), `overdue=true`, `q` (case-insensitive search in title and description), `sort` (`dueDate`, `priority`, `createdAt` or `title`, plus `,asc` or `,desc`; default `createdAt,desc`), `page` (default 0), `size` (default 10, max 50).
 

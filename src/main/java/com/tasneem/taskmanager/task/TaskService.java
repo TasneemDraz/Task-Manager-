@@ -12,6 +12,7 @@ import com.tasneem.taskmanager.task.dto.UpdateStatusRequest;
 import com.tasneem.taskmanager.task.dto.UpdateTaskRequest;
 import com.tasneem.taskmanager.user.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -62,13 +63,14 @@ public class TaskService {
     public PageResponse<TaskResponse> list(Long ownerId, TaskFilter filter, int page, int size, String sort) {
         Specification<Task> spec = TaskSpecifications.ownedBy(ownerId)
                 .and(TaskSpecifications.matching(filter, LocalDate.now(clock)));
-        return search(spec, page, size, sort);
+        return PageResponse.from(search(spec, page, size, sort), taskMapper::toResponse);
     }
 
-    /** Admin view: every user's tasks, same filters, read-only. */
+    /** Admin view: every user's tasks with their owner, same filters, read-only. */
     @Transactional(readOnly = true)
     public PageResponse<TaskResponse> listAll(TaskFilter filter, int page, int size, String sort) {
-        return search(TaskSpecifications.matching(filter, LocalDate.now(clock)), page, size, sort);
+        Specification<Task> spec = TaskSpecifications.matching(filter, LocalDate.now(clock));
+        return PageResponse.from(search(spec, page, size, sort), taskMapper::toAdminResponse);
     }
 
     @Transactional(readOnly = true)
@@ -120,9 +122,9 @@ public class TaskService {
         taskRepository.delete(findOwnedTask(ownerId, taskId));
     }
 
-    private PageResponse<TaskResponse> search(Specification<Task> spec, int page, int size, String sort) {
+    private Page<Task> search(Specification<Task> spec, int page, int size, String sort) {
         Pageable pageable = PageRequest.of(page, size, TaskSorting.parse(sort));
-        return PageResponse.from(taskRepository.findAll(spec, pageable), taskMapper::toResponse);
+        return taskRepository.findAll(spec, pageable);
     }
 
     /** Returns 404 for both missing tasks and other users' tasks, so ids are not leaked. */

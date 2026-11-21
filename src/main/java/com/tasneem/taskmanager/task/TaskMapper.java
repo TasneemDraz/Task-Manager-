@@ -1,6 +1,7 @@
 package com.tasneem.taskmanager.task;
 
 import com.tasneem.taskmanager.task.dto.TaskResponse;
+import com.tasneem.taskmanager.user.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -13,7 +14,18 @@ public class TaskMapper {
 
     private final Clock clock;
 
+    /** For a user's own tasks: the owner is the caller, so it is left out. */
     public TaskResponse toResponse(Task task) {
+        return map(task, null);
+    }
+
+    /** For the admin view of all tasks: includes who owns each one. */
+    public TaskResponse toAdminResponse(Task task) {
+        User owner = task.getOwner();
+        return map(task, new TaskResponse.Owner(owner.getId(), owner.getEmail()));
+    }
+
+    private TaskResponse map(Task task, TaskResponse.Owner owner) {
         LocalDate today = LocalDate.now(clock);
         return new TaskResponse(
                 task.getId(),
@@ -26,6 +38,7 @@ public class TaskMapper {
                 task.getCompletedAt(),
                 task.getCreatedAt(),
                 task.getUpdatedAt(),
-                task.getVersion());
+                task.getVersion(),
+                owner);
     }
 }

@@ -1,5 +1,6 @@
 package com.tasneem.taskmanager.user;
 
+import com.tasneem.taskmanager.common.exception.ConflictException;
 import com.tasneem.taskmanager.common.exception.NotFoundException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,6 +51,16 @@ class UserServiceTest {
         userService.deactivate(7L);
 
         assertThat(user.isActive()).isFalse();
+    }
+
+    @Test
+    void adminCannotBeDeactivated() {
+        User admin = user();
+        admin.setRole(Role.ADMIN);
+        when(userRepository.findById(7L)).thenReturn(Optional.of(admin));
+
+        assertThatThrownBy(() -> userService.deactivate(7L)).isInstanceOf(ConflictException.class);
+        assertThat(admin.isActive()).isTrue();
     }
 
     @Test

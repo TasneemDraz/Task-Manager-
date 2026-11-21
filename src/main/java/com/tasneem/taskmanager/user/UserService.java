@@ -1,6 +1,7 @@
 package com.tasneem.taskmanager.user;
 
 import com.tasneem.taskmanager.common.PageResponse;
+import com.tasneem.taskmanager.common.exception.ConflictException;
 import com.tasneem.taskmanager.common.exception.NotFoundException;
 import com.tasneem.taskmanager.user.dto.UserResponse;
 import lombok.RequiredArgsConstructor;
@@ -25,10 +26,17 @@ public class UserService {
         return PageResponse.from(userRepository.findAll(pageable), UserResponse::from);
     }
 
-    /** Idempotent. The user's existing tokens stop working because JwtFilter checks `active` on every request. */
+    /**
+     * Idempotent. The user's existing tokens stop working because JwtFilter checks `active` on every request.
+     * Admin accounts cannot be deactivated, so the system can never be left without an admin.
+     */
     @Transactional
     public void deactivate(Long userId) {
-        findUser(userId).setActive(false);
+        User user = findUser(userId);
+        if (user.getRole() == Role.ADMIN) {
+            throw new ConflictException("Admin accounts cannot be deactivated");
+        }
+        user.setActive(false);
     }
 
     private User findUser(Long userId) {
