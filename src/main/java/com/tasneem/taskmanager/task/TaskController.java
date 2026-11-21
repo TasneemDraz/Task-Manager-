@@ -1,17 +1,24 @@
 package com.tasneem.taskmanager.task;
 
 import com.tasneem.taskmanager.auth.CurrentUser;
+import com.tasneem.taskmanager.common.PageResponse;
 import com.tasneem.taskmanager.task.dto.CreateTaskRequest;
+import com.tasneem.taskmanager.task.dto.TaskFilter;
 import com.tasneem.taskmanager.task.dto.TaskResponse;
+import com.tasneem.taskmanager.task.dto.TaskSummaryResponse;
 import com.tasneem.taskmanager.task.dto.UpdateStatusRequest;
 import com.tasneem.taskmanager.task.dto.UpdateTaskRequest;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -40,6 +47,20 @@ public class TaskController {
                 .buildAndExpand(created.id())
                 .toUri();
         return ResponseEntity.created(location).body(created);
+    }
+
+    @GetMapping
+    public PageResponse<TaskResponse> list(@AuthenticationPrincipal CurrentUser user,
+                                           @ModelAttribute TaskFilter filter,
+                                           @RequestParam(defaultValue = "0") @Min(0) int page,
+                                           @RequestParam(defaultValue = "10") @Min(1) @Max(50) int size,
+                                           @RequestParam(defaultValue = TaskSorting.DEFAULT) String sort) {
+        return taskService.list(user.id(), filter, page, size, sort);
+    }
+
+    @GetMapping("/summary")
+    public TaskSummaryResponse summary(@AuthenticationPrincipal CurrentUser user) {
+        return taskService.summary(user.id());
     }
 
     @GetMapping("/{id}")

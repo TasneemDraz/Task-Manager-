@@ -1,19 +1,28 @@
 package com.tasneem.taskmanager.task;
 
+import com.tasneem.taskmanager.common.PageResponse;
 import com.tasneem.taskmanager.common.exception.BadRequestException;
 import com.tasneem.taskmanager.common.exception.ConflictException;
 import com.tasneem.taskmanager.common.exception.NotFoundException;
 import com.tasneem.taskmanager.task.dto.CreateTaskRequest;
+import com.tasneem.taskmanager.task.dto.TaskFilter;
 import com.tasneem.taskmanager.task.dto.TaskResponse;
+import com.tasneem.taskmanager.task.dto.TaskSummaryResponse;
 import com.tasneem.taskmanager.task.dto.UpdateStatusRequest;
 import com.tasneem.taskmanager.task.dto.UpdateTaskRequest;
 import com.tasneem.taskmanager.user.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDate;
+import java.util.Arrays;
+import java.util.EnumMap;
+import java.util.Map;
 import java.util.Objects;
 
 /** All task business rules live here; the controller only translates HTTP. */
@@ -49,6 +58,34 @@ public class TaskService {
         return taskMapper.toResponse(findOwnedTask(ownerId, taskId));
     }
 
+    @Transactional(readOnly = true)
+    public PageResponse<TaskResponse> list(Long ownerId, TaskFilter filter, int page, int size, String sort) {
+        Specification<Task> spec = TaskSpecifications.ownedBy(ownerId)
+                .and(TaskSpecifications.matching(filter, LocalDate.now(clock)));
+        return search(spec, page, size, sort);
+    }
+
+    /** Admin view: every user's tasks, same filters, read-only. */
+    @Transactional(readOnly = true)
+    public PageResponse<TaskResponse> listAll(TaskFilter filter, int page, int size, String sort) {
+        return search(TaskSpecifications.matching(filter, LocalDate.now(clock)), page, size, sort);
+    }
+
+    @Transactional(readOnly = true)
+    public TaskSummaryResponse summary(Long ownerId) {
+        Map<TaskStatus, Long> byStatus = new EnumMap<>(TaskStatus.class);
+        Arrays.stream(TaskStatus.values()).forEach(s -> byStatus.put(s, 0L));
+        taskRepository.countByStatus(ownerId).forEach(c -> byStatus.put(c.getStatus(), c.getTotal()));
+
+        Map<Priority, Long> byPriority = new EnumMap<>(Priority.class);
+        Arrays.stream(Priority.values()).forEach(p -> byPriority.put(p, 0L));
+        taskRepository.countByPriority(ownerId).forEach(c -> byPriority.put(c.getPriority(), c.getTotal()));
+
+        long overdue = taskRepository.countByOwnerIdAndDueDateBeforeAndStatusNot(
+                ownerId, LocalDate.now(clock), TaskStatus.DONE);
+        return new TaskSummaryResponse(byStatus, byPriority, overdue);
+    }
+
     public TaskResponse update(Long ownerId, Long taskId, UpdateTaskRequest request) {
         Task task = findOwnedTask(ownerId, taskId);
         requireVersion(task, request.version());
@@ -81,6 +118,11 @@ public class TaskService {
 
     public void delete(Long ownerId, Long taskId) {
         taskRepository.delete(findOwnedTask(ownerId, taskId));
+    }
+
+    private PageResponse<TaskResponse> search(Specification<Task> spec, int page, int size, String sort) {
+        Pageable pageable = PageRequest.of(page, size, TaskSorting.parse(sort));
+        return PageResponse.from(taskRepository.findAll(spec, pageable), taskMapper::toResponse);
     }
 
     /** Returns 404 for both missing tasks and other users' tasks, so ids are not leaked. */
