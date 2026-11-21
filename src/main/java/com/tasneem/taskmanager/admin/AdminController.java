@@ -10,6 +10,7 @@ import com.tasneem.taskmanager.user.dto.UserResponse;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -42,7 +43,7 @@ public class AdminController {
     }
 
     @GetMapping("/tasks")
-    public PageResponse<TaskResponse> listTasks(@ModelAttribute TaskFilter filter,
+    public PageResponse<TaskResponse> listTasks(@ParameterObject @ModelAttribute TaskFilter filter,
                                                 @RequestParam(defaultValue = "0") @Min(0) int page,
                                                 @RequestParam(defaultValue = "10") @Min(1) @Max(50) int size,
                                                 @RequestParam(defaultValue = TaskSorting.DEFAULT) String sort) {

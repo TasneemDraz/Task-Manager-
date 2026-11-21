@@ -4,6 +4,7 @@ import com.tasneem.taskmanager.auth.dto.LoginRequest;
 import com.tasneem.taskmanager.auth.dto.RegisterRequest;
 import com.tasneem.taskmanager.auth.dto.TokenResponse;
 import com.tasneem.taskmanager.user.dto.UserResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
+@SecurityRequirements   // public endpoints: no token needed
 public class AuthController {
 
     private final AuthService authService;

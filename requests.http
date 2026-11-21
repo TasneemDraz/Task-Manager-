@@ -1,0 +1,114 @@
+### Task Manager API - sample requests
+# For the IntelliJ HTTP Client. Run them top to bottom: login stores the token,
+# create stores the task id (the "> {% ... %}" response handlers).
+
+@baseUrl = http://localhost:8080/api/v1
+
+### Register
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "fullName": "Jane Doe",
+  "email": "jane@example.com",
+  "password": "secret123"
+}
+
+### Login
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "jane@example.com",
+  "password": "secret123"
+}
+
+> {% client.global.set("token", response.body.accessToken); %}
+
+### My profile
+GET {{baseUrl}}/users/me
+Authorization: Bearer {{token}}
+
+### Create a task
+# @name createTask
+POST {{baseUrl}}/tasks
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "Prepare sprint demo",
+  "description": "Slides + live demo",
+  "priority": "HIGH",
+  "dueDate": "2030-01-15"
+}
+
+> {% client.global.set("taskId", response.body.id); %}
+
+### Get the task
+GET {{baseUrl}}/tasks/{{taskId}}
+Authorization: Bearer {{token}}
+
+### List my tasks: filters, search, sort and paging
+GET {{baseUrl}}/tasks?status=TODO&status=IN_PROGRESS&priority=HIGH&q=demo&sort=dueDate,asc&page=0&size=10
+Authorization: Bearer {{token}}
+
+### Only overdue tasks
+GET {{baseUrl}}/tasks?overdue=true
+Authorization: Bearer {{token}}
+
+### Update (send the version you last read)
+PUT {{baseUrl}}/tasks/{{taskId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "Prepare sprint demo v2",
+  "description": "Slides + live demo + Q&A",
+  "priority": "HIGH",
+  "dueDate": "2030-01-16",
+  "version": 0
+}
+
+### Change status
+PATCH {{baseUrl}}/tasks/{{taskId}}/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "status": "IN_PROGRESS",
+  "version": 1
+}
+
+### Summary
+GET {{baseUrl}}/tasks/summary
+Authorization: Bearer {{token}}
+
+### Delete
+DELETE {{baseUrl}}/tasks/{{taskId}}
+Authorization: Bearer {{token}}
+
+### --- Admin (credentials from ADMIN_EMAIL / ADMIN_PASSWORD) ---
+
+### Admin login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@taskmanager.local",
+  "password": "ChangeMe123"
+}
+
+> {% client.global.set("adminToken", response.body.accessToken); %}
+
+### List users
+GET {{baseUrl}}/admin/users?page=0&size=10
+Authorization: Bearer {{adminToken}}
+
+### List all tasks (same filters as /tasks)
+GET {{baseUrl}}/admin/tasks?overdue=true
+Authorization: Bearer {{adminToken}}
+
+### Deactivate a user
+PATCH {{baseUrl}}/admin/users/2/deactivate
+Authorization: Bearer {{adminToken}}
