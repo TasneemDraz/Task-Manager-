@@ -13,10 +13,10 @@ import java.time.LocalDate;
  * rejects a past date when the due date actually changes.
  */
 public record UpdateTaskRequest(
-        @NotBlank @Size(min = 3, max = 120)
+        @NotBlank @Size(min = 3, max = 120, message = "must be between 3 and 120 characters")
         String title,
 
-        @Size(max = 2000)
+        @Size(max = 2000, message = "must be at most 2000 characters")
         String description,
 
         @NotNull

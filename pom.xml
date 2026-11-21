@@ -158,7 +158,7 @@
                     </execution>
                 </executions>
             </plugin>
-            <!-- Coverage report: target/site/jacoco/index.html -->
+            <!-- Coverage report (unit + integration tests): target/site/jacoco/index.html -->
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
@@ -172,7 +172,7 @@
                     </execution>
                     <execution>
                         <id>report</id>
-                        <phase>test</phase>
+                        <phase>verify</phase>
                         <goals>
                             <goal>report</goal>
                         </goals>

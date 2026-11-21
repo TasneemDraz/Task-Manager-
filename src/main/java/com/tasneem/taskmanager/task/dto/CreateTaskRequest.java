@@ -8,10 +8,10 @@ import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 
 public record CreateTaskRequest(
-        @NotBlank @Size(min = 3, max = 120)
+        @NotBlank @Size(min = 3, max = 120, message = "must be between 3 and 120 characters")
         String title,
 
-        @Size(max = 2000)
+        @Size(max = 2000, message = "must be at most 2000 characters")
         String description,
 
         /** Optional, defaults to MEDIUM. */
